@@ -1,0 +1,55 @@
+[tool.poetry]
+name = "image-handler"
+version = "0.1.0"
+description = "Generate ai images"
+authors = [
+  "Nathan <probysuper8@gmail.com>",
+  "Faisal <faisalfawad2004@gmail.com>"
+]
+readme = "README.md"
+repository = "https://github.com/imaginate-ai/image-handler"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+numpy = "^1.0"
+requests = "^2.0"
+marshmallow = "^3.0"
+transformers = "^4.0"
+aws-lambda-powertools = "^1.0"
+torch = { url = "https://download.pytorch.org/whl/cu121/torch-2.3.1%2Bcu121-cp312-cp312-win_amd64.whl" }
+torchaudio = { url = "https://download.pytorch.org/whl/cu121/torchaudio-2.3.1%2Bcu121-cp312-cp312-win_amd64.whl" }
+torchvision = { url = "https://download.pytorch.org/whl/cu121/torchvision-0.18.1%2Bcu121-cp312-cp312-win_amd64.whl" }
+diffusers = "^0.29.2"
+pytest = "^8.2.2"
+pre-commit = "^3.7.1"
+accelerate = "^0.33.0"
+ruff = "^0.5.5"
+pillow = "^10.4.0"
+image-handler-client = {git = "https://github.com/imaginate-ai/image-handler-client.git", rev = "v1.0.0"}
+
+[tool.ruff]
+exclude = []
+line-length = 88
+indent-width = 2
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+ignore = []
+fixable = ["ALL"]
+unfixable = []
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.pytest.ini_options]
+pythonpath = ["image_handler"]
+testpaths = ["tests/unit"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
