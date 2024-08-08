@@ -26,6 +26,7 @@ accelerate = "^0.33.0"
 ruff = "^0.5.5"
 pillow = "^10.4.0"
 image-handler-client = {git = "https://github.com/imaginate-ai/image-handler-client.git", rev = "v1.0.0"}
+ollama = "^0.3.1"
 
 [tool.ruff]
 exclude = []
@@ -38,7 +39,6 @@ select = ["E4", "E7", "E9", "F"]
 ignore = []
 fixable = ["ALL"]
 unfixable = []
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.format]
 quote-style = "double"

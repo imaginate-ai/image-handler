@@ -87,7 +87,7 @@ class ImageHandler:
       "info": info,
     }
     self.queue.put(task)
-    logger.info(f"\nEnqueued: {prompt}")
+    logger.info(f"\nEnqueued: {info.filename}")
 
 
   # add text to image task to queue
@@ -114,18 +114,17 @@ class ImageHandler:
       "info": info,
     }
     self.queue.put(task)
-    logger.info(f"\nEnqueued: {prompt}")
+    logger.info(f"\nEnqueued: {info.filename}")
 
 
   # Continuously process the queue
   def _process_queue(self):
     while True:
       task = self.queue.get()
-      if task is None:
+      if task is None or task.get("info") is None:
         break
       else:
-        logger.info(f"\nDequeued: {task.get('kwargs', {}).get('prompt')}")
-        logger.info(f"Task: {task}")
+        logger.info(f"\nDequeued: {task['info'].filename}")
 
         if task.get("type") == DataType.IMAGE:
           if "image" not in task["kwargs"]:
@@ -134,7 +133,6 @@ class ImageHandler:
           if "prompt" not in task["kwargs"]:
             raise ValueError("Prompt is None")
         else:
-          logger.info("here")
           raise ValueError("Invalid task type")
         self.process(task)
         self.queue.task_done()
@@ -148,7 +146,8 @@ class ImageHandler:
     elif item["type"] == DataType.PROMPT:
       image = self.text_pipe(**item["kwargs"]).images[0]
 
-    save_image(image, item["info"])
+    # save_image(image, item["info"])
+    image.show()
     remaining_tasks = self.queue.qsize() - 1
     logger.info(
       f"Saved image: {item['info'].filename}, {remaining_tasks} tasks remaining"
