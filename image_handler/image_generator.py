@@ -3,7 +3,7 @@ import queue
 import threading
 from enum import Enum
 from typing import Union
-
+import ollama
 from PIL import Image, ImageOps
 import requests
 import torch
@@ -53,6 +53,27 @@ class ImageHandler:
     self.thread = threading.Thread(target=self._process_queue)
     self.thread.daemon = True
     self.thread.start()
+
+
+  # create prompt from theme input
+  def create_prompt(self, theme: str) -> dict:
+    response = ollama.chat(
+        model="llama3",
+        messages=[
+            {
+                "role": "user",
+                "content": f"generate a prompt for an ai image model to create a real photograph of {theme}. "
+                           f"Only output the prompt, nothing else, as the response will be fed "
+                           f"directly to the image generator. Make sure the prompt is under 75 words.",
+            },
+        ],
+    )
+
+    prompt_info = {"prompt": response['message']['content'],
+                   "negative_prompt": ("bad lighting, out of focus, blurred, poorly composed, low resolution, "
+                                       "extra elements, hands, people, non-food items, cartoonish, animated, "
+                                       "unrealistic, uncentered, over saturated zoomed in")}
+    return prompt_info
 
 
   # get image from url
