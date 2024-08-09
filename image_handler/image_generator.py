@@ -3,7 +3,7 @@ import queue
 import threading
 from enum import Enum
 from typing import Union
-
+import ollama
 from PIL import Image, ImageOps
 import requests
 import torch
@@ -55,6 +55,27 @@ class ImageHandler:
     self.thread.start()
 
 
+  # create prompt from theme input
+  def create_prompt(self, theme: str) -> dict:
+    response = ollama.chat(
+        model="llama3",
+        messages=[
+            {
+                "role": "user",
+                "content": f"generate a prompt for an ai image model to create a real photograph of {theme}. "
+                           f"Only output the prompt, nothing else, as the response will be fed "
+                           f"directly to the image generator. Make sure the prompt is under 75 words.",
+            },
+        ],
+    )
+
+    prompt_info = {"prompt": response['message']['content'],
+                   "negative_prompt": ("bad lighting, out of focus, blurred, poorly composed, low resolution, "
+                                       "extra elements, hands, people, non-food items, cartoonish, animated, "
+                                       "unrealistic, uncentered, over saturated zoomed in")}
+    return prompt_info
+
+
   # get image from url
   def get_image_from_url(self, url: str) -> Image.Image:
     image = Image.open(requests.get(url, stream=True, timeout=10).raw)
@@ -87,7 +108,7 @@ class ImageHandler:
       "info": info,
     }
     self.queue.put(task)
-    logger.info(f"\nEnqueued: {prompt}")
+    logger.info(f"\nEnqueued: {info.filename}")
 
 
   # add text to image task to queue
@@ -114,18 +135,17 @@ class ImageHandler:
       "info": info,
     }
     self.queue.put(task)
-    logger.info(f"\nEnqueued: {prompt}")
+    logger.info(f"\nEnqueued: {info.filename}")
 
 
   # Continuously process the queue
   def _process_queue(self):
     while True:
       task = self.queue.get()
-      if task is None:
+      if task is None or task.get("info") is None:
         break
       else:
-        logger.info(f"\nDequeued: {task.get('kwargs', {}).get('prompt')}")
-        logger.info(f"Task: {task}")
+        logger.info(f"\nDequeued: {task['info'].filename}")
 
         if task.get("type") == DataType.IMAGE:
           if "image" not in task["kwargs"]:
@@ -134,7 +154,6 @@ class ImageHandler:
           if "prompt" not in task["kwargs"]:
             raise ValueError("Prompt is None")
         else:
-          logger.info("here")
           raise ValueError("Invalid task type")
         self.process(task)
         self.queue.task_done()
@@ -148,7 +167,8 @@ class ImageHandler:
     elif item["type"] == DataType.PROMPT:
       image = self.text_pipe(**item["kwargs"]).images[0]
 
-    save_image(image, item["info"])
+    # save_image(image, item["info"])
+    image.show()
     remaining_tasks = self.queue.qsize() - 1
     logger.info(
       f"Saved image: {item['info'].filename}, {remaining_tasks} tasks remaining"
