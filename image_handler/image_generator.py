@@ -1,20 +1,21 @@
+import http.client
 import io
 import queue
 import threading
 from enum import Enum
 from typing import Union
+
 import ollama
-from PIL import Image, ImageOps
 import requests
 import torch
 from aws_lambda_powertools import Logger
-from image_handler_client.schemas.image_info import ImageInfo
-
 from diffusers import (
+  DiffusionPipeline,
   EulerAncestralDiscreteScheduler,
   StableDiffusionInstructPix2PixPipeline,
-  DiffusionPipeline,
 )
+from image_handler_client.schemas.image_info import ImageInfo
+from PIL import Image, ImageOps
 
 logger = Logger()
 
@@ -34,9 +35,7 @@ class ImageHandler:
     self.image_pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(
       image_model_id, torch_dtype=torch.float16
     ).to(self.device)
-    self.image_pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(
-      self.image_pipe.scheduler.config
-    )
+    self.image_pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(self.image_pipe.scheduler.config)
 
     # https://huggingface.co/runwayml/stable-diffusion-v1-5
     text_model_id = "runwayml/stable-diffusion-v1-5"
@@ -44,9 +43,7 @@ class ImageHandler:
     self.text_pipe = DiffusionPipeline.from_pretrained(
       text_model_id, torch_dtype=torch.float16, safety_checker=None
     ).to(self.device)
-    self.text_pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(
-      self.image_pipe.scheduler.config
-    )
+    self.text_pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(self.image_pipe.scheduler.config)
 
     # Initialize the asynchronous queue and thread
     self.queue = queue.Queue()
@@ -54,27 +51,29 @@ class ImageHandler:
     self.thread.daemon = True
     self.thread.start()
 
-
   # create prompt from theme input
   def create_prompt(self, theme: str) -> dict:
     response = ollama.chat(
-        model="llama3",
-        messages=[
-            {
-                "role": "user",
-                "content": f"generate a prompt for an ai image model to create a real photograph of {theme}. "
-                           f"Only output the prompt, nothing else, as the response will be fed "
-                           f"directly to the image generator. Make sure the prompt is under 75 words.",
-            },
-        ],
+      model="llama3",
+      messages=[
+        {
+          "role": "user",
+          "content": f"generate a prompt for an ai image model to create a real photograph of {theme}. "
+          f"Only output the prompt, nothing else, as the response will be fed "
+          f"directly to the image generator. Make sure the prompt is under 75 words.",
+        },
+      ],
     )
 
-    prompt_info = {"prompt": response['message']['content'],
-                   "negative_prompt": ("bad lighting, out of focus, blurred, poorly composed, low resolution, "
-                                       "extra elements, hands, people, non-food items, cartoonish, animated, "
-                                       "unrealistic, uncentered, over saturated zoomed in")}
+    prompt_info = {
+      "prompt": response["message"]["content"],
+      "negative_prompt": (
+        "bad lighting, out of focus, blurred, poorly composed, low resolution, "
+        "extra elements, hands, people, non-food items, cartoonish, animated, "
+        "unrealistic, uncentered, over saturated zoomed in"
+      ),
+    }
     return prompt_info
-
 
   # get image from url
   def get_image_from_url(self, url: str) -> Image.Image:
@@ -82,7 +81,6 @@ class ImageHandler:
     image = ImageOps.exif_transpose(image)
     image = image.convert("RGB")
     return image
-
 
   # add image to image task to queue
   def enqueue_image_to_image(
@@ -110,12 +108,11 @@ class ImageHandler:
     self.queue.put(task)
     logger.info(f"\nEnqueued: {info.filename}")
 
-
   # add text to image task to queue
   def enqueue_prompt_to_image(
     self,
     info: ImageInfo,
-    prompt: str=None,
+    prompt: str = None,
     negative_prompt=None,
     extra_prompt=None,
     num_inference_steps=None,
@@ -137,7 +134,6 @@ class ImageHandler:
     self.queue.put(task)
     logger.info(f"\nEnqueued: {info.filename}")
 
-
   # Continuously process the queue
   def _process_queue(self):
     while True:
@@ -158,7 +154,6 @@ class ImageHandler:
         self.process(task)
         self.queue.task_done()
 
-
   # Process the task
   def process(self, item):
     image = None
@@ -170,10 +165,7 @@ class ImageHandler:
     # save_image(image, item["info"])
     image.show()
     remaining_tasks = self.queue.qsize() - 1
-    logger.info(
-      f"Saved image: {item['info'].filename}, {remaining_tasks} tasks remaining"
-    )
-
+    logger.info(f"Saved image: {item['info'].filename}, {remaining_tasks} tasks remaining")
 
   # Stop processing the queue, wait for all tasks to finish
   def stop_processing(self):
@@ -207,7 +199,7 @@ def save_image(image: Image.Image, info: ImageInfo):
   )
   status = req.status_code
 
-  if status == 200:
+  if status == http.client.OK:
     image_id = req.json()["url"].split("/")[-1]
     logger.info(f"Image saved with id: {image_id}")
   else:
