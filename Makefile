@@ -12,7 +12,7 @@ install:
 .PHONY: lint
 lint:
 	@echo Linting code
-	@pre-commit run ruff -a
+	@poetry run pre-commit run -a
 
 .PHONY: test
 test:
