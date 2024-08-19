@@ -32,7 +32,7 @@ ollama = "^0.3.1"
 [tool.ruff]
 src = ["image_handler", "tests"]
 line-length = 120
-indent-width = 2
+indent-width = 4
 
 [tool.ruff.lint]
 select = [
