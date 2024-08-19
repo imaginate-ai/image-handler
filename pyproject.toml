@@ -50,9 +50,6 @@ line-ending = "auto"
 pythonpath = ["image_handler"]
 testpaths = ["tests/unit"]
 
-[tool.mypy]
-mypy_path = ["image_handler"]
-
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
