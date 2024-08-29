@@ -10,12 +10,13 @@ repos:
     hooks:
       - id: static-analysis
         name: ruff-linter
-        entry: poetry run ruff check --fix
+        entry: poetry run ruff check
         language: system
         types:
           - python
         args:
           - '--config=./pyproject.toml'
+          - '--fix'
         pass_filenames: false
       - id: format
         name: ruff-format
