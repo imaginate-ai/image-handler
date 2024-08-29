@@ -30,7 +30,7 @@ image-handler-client = {git = "https://github.com/imaginate-ai/image-handler-cli
 [tool.ruff]
 exclude = []
 line-length = 88
-indent-width = 2
+indent-width = 4
 target-version = "py312"
 
 [tool.ruff.lint]
