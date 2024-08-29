@@ -54,14 +54,12 @@ class ImageHandler:
     self.thread.daemon = True
     self.thread.start()
 
-
   # get image from url
   def get_image_from_url(self, url: str) -> Image.Image:
     image = Image.open(requests.get(url, stream=True, timeout=10).raw)
     image = ImageOps.exif_transpose(image)
     image = image.convert("RGB")
     return image
-
 
   # add image to image task to queue
   def enqueue_image_to_image(
@@ -89,12 +87,11 @@ class ImageHandler:
     self.queue.put(task)
     logger.info(f"\nEnqueued: {prompt}")
 
-
   # add text to image task to queue
   def enqueue_prompt_to_image(
     self,
     info: ImageInfo,
-    prompt: str=None,
+    prompt: str = None,
     negative_prompt=None,
     extra_prompt=None,
     num_inference_steps=None,
@@ -115,7 +112,6 @@ class ImageHandler:
     }
     self.queue.put(task)
     logger.info(f"\nEnqueued: {prompt}")
-
 
   # Continuously process the queue
   def _process_queue(self):
@@ -139,7 +135,6 @@ class ImageHandler:
         self.process(task)
         self.queue.task_done()
 
-
   # Process the task
   def process(self, item):
     image = None
@@ -153,7 +148,6 @@ class ImageHandler:
     logger.info(
       f"Saved image: {item['info'].filename}, {remaining_tasks} tasks remaining"
     )
-
 
   # Stop processing the queue, wait for all tasks to finish
   def stop_processing(self):

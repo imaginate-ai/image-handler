@@ -6,20 +6,24 @@ repos:
     rev: '1.8.3'
     hooks:
       - id: poetry-check
-      - id: poetry-lock
-      - id: poetry-install
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.5.0
-    hooks:
-      - id: ruff
-        args: [ --fix ]
-      - id: ruff-format
   - repo: local
     hooks:
-      - id: pytest-check
-        name: pytest-check
-        entry: pytest
+      - id: static-analysis
+        name: ruff-linter
+        entry: poetry run ruff check
         language: system
+        types:
+          - python
+        args:
+          - '--config=./pyproject.toml'
+          - '--fix'
         pass_filenames: false
-        always_run: true
-        stages: [ push ]
+      - id: format
+        name: ruff-format
+        entry: poetry run ruff format
+        language: system
+        types:
+          - python
+        args:
+          - '--config=./pyproject.toml'
+        pass_filenames: false
