@@ -1,24 +1,26 @@
+import http.client
 import io
 import os
 import queue
+import sys
 import threading
 from enum import Enum
 from typing import Union
 
-from PIL import Image, ImageOps
+import httpx
+import ollama
 import requests
 import torch
 from aws_lambda_powertools import Logger
-from image_handler_client.schemas.image_info import ImageInfo, ImageStatus
-
 from diffusers import (
-    EulerAncestralDiscreteScheduler,
-    StableDiffusionInstructPix2PixPipeline,
     DiffusionPipeline,
+    EulerAncestralDiscreteScheduler,
 )
+from dotenv import load_dotenv
+from image_handler_client.schemas.image_info import ImageInfo, ImageStatus
+from PIL import Image, ImageOps
 
 from errors import InsufficientImagesError
-from dotenv import load_dotenv
 
 load_dotenv()
 logger = Logger()
@@ -36,36 +38,47 @@ class ImageHandler:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Initialized for {self.device}")
 
-        # https://huggingface.co/timbrooks/instruct-pix2pix
-        image_model_id = "timbrooks/instruct-pix2pix"
-        self.image_pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(
-            image_model_id, torch_dtype=torch.float16
-        ).to(self.device)
-        self.image_pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(
-            self.image_pipe.scheduler.config
-        )
-
-        # https://huggingface.co/runwayml/stable-diffusion-v1-5
-        text_model_id = "runwayml/stable-diffusion-v1-5"
-        logger.info(f"Using model id: {text_model_id}")
-        self.text_pipe = DiffusionPipeline.from_pretrained(
-            text_model_id, torch_dtype=torch.float16, safety_checker=None
-        ).to(self.device)
-        self.text_pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(
-            self.image_pipe.scheduler.config
-        )
-
         # Initialize the asynchronous queue and thread
         self.queue = queue.Queue()
         self.thread = threading.Thread(target=self._process_queue)
         self.thread.daemon = True
         self.thread.start()
 
+    # create prompt from theme input
+    def create_prompt(self, theme: str) -> dict:
+        try:
+            response = ollama.chat(
+                model="llama3",
+                keep_alive=0,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"generate a prompt for an ai image model to create a real photograph of {theme}. "
+                        f"Only output the prompt, nothing else, as the response will be fed "
+                        f"directly to the image generator. Make sure the prompt is under 75 words.",
+                    },
+                ],
+            )
+        except httpx.ConnectError:
+            print("Error: 'ollama' service needs to be running. Please start it and try again.")
+            sys.exit(1)
+
+        prompt_info = {
+            "prompt": response["message"]["content"],
+            "negative_prompt": (
+                "bad lighting, out of focus, blurred, poorly composed, low resolution, "
+                "extra elements, hands, people, non-food items, cartoonish, animated, "
+                "unrealistic, uncentered, over saturated zoomed in"
+            ),
+        }
+        return prompt_info
+
     def get_image_from_pexel(self, info: ImageInfo, theme: str, number: int):
         response = requests.get(
             f"{PEXELS_BASE_URL}/search",
             params={"query": theme, "per_page": number},
             headers={"Authorization": os.getenv("PEXELS_TOKEN")},
+            timeout=5,
         )
         response_data = response.json()
 
@@ -109,7 +122,7 @@ class ImageHandler:
             "info": info,
         }
         self.queue.put(task)
-        logger.info(f"\nEnqueued: {prompt}")
+        logger.info(f"\nEnqueued: {info.filename}")
 
     # add text to image task to queue
     def enqueue_prompt_to_image(
@@ -135,7 +148,7 @@ class ImageHandler:
             "info": info,
         }
         self.queue.put(task)
-        logger.info(f"\nEnqueued: {prompt}")
+        logger.info(f"\nEnqueued: {info.filename}")
 
     # Continuously process the queue
     def _process_queue(self):
@@ -144,8 +157,7 @@ class ImageHandler:
             if task is None:
                 break
             else:
-                logger.info(f"\nDequeued: {task.get('kwargs', {}).get('prompt')}")
-                logger.info(f"Task: {task}")
+                logger.info(f"\nDequeued: {task.get('info').filename}")
 
                 if task.get("type") == DataType.IMAGE:
                     if "image" not in task["kwargs"]:
@@ -154,7 +166,6 @@ class ImageHandler:
                     if "prompt" not in task["kwargs"]:
                         raise ValueError("Prompt is None")
                 else:
-                    logger.info("here")
                     raise ValueError("Invalid task type")
                 self.process(task)
                 self.queue.task_done()
@@ -163,15 +174,11 @@ class ImageHandler:
     def process(self, item):
         image = None
         if item["type"] == DataType.IMAGE:
-            image = self.image_pipe(**item["kwargs"]).images[0]
+            image = self.process_image(item)
         elif item["type"] == DataType.PROMPT:
-            image = self.text_pipe(**item["kwargs"]).images[0]
+            image = self.process_prompt(item)
 
         save_image(image, item["info"])
-        remaining_tasks = self.queue.qsize() - 1
-        logger.info(
-            f"Saved image: {item['info'].filename}, {remaining_tasks} tasks remaining"
-        )
 
     # Stop processing the queue, wait for all tasks to finish
     def stop_processing(self):
@@ -180,10 +187,28 @@ class ImageHandler:
         self.queue.put(None)
         self.thread.join()
 
+    def process_image(self, item):
+        # https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0
+        image_model_id = "stabilityai/stable-diffusion-xl-refiner-1.0"
+        image_pipe = DiffusionPipeline.from_pretrained(image_model_id, torch_dtype=torch.float16).to(self.device)
+        image_pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(image_pipe.scheduler.config)
+
+        return image_pipe(**item["kwargs"]).images[0]
+
+    def process_prompt(self, item):
+        # https://huggingface.co/runwayml/stable-diffusion-v1-5
+        text_model_id = "runwayml/stable-diffusion-v1-5"
+        text_pipe = DiffusionPipeline.from_pretrained(text_model_id, torch_dtype=torch.float16, safety_checker=None).to(
+            self.device
+        )
+        text_pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(text_pipe.scheduler.config)
+
+        return text_pipe(**item["kwargs"]).images[0]
+
 
 # save image to database
 def save_image(image: Union[Image.Image, str], info: ImageInfo):
-    if image is Image.Image:
+    if isinstance(image, Image.Image):
         image_type = "jpeg"
         image_bytes = io.BytesIO()
         image.save(image_bytes, format=image_type)
@@ -213,12 +238,12 @@ def save_image(image: Union[Image.Image, str], info: ImageInfo):
                 "status": ImageStatus.UNVERIFIED.value,
             },
             files=None,
+            timeout=5,
         )
 
     status = response.status_code
-    if status == 200:
-        image_id = response.json()["url"].split("/")[-1]
-        logger.info(f"Image saved with id: {image_id}")
+    if status == http.client.OK:
+        logger.info(f"Image [{info.filename}] successfully saved")
     else:
-        logger.error("Failed to save image")
+        logger.error(f"Failed to save image [{info.filename}]")
         logger.error(response.text)
