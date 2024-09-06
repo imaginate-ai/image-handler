@@ -1,4 +1,5 @@
 import io
+import os
 import queue
 import threading
 from enum import Enum
@@ -16,7 +17,12 @@ from diffusers import (
   DiffusionPipeline,
 )
 
+from errors import InsufficientImagesError
+from dotenv import load_dotenv
+
+load_dotenv()
 logger = Logger()
+PEXELS_BASE_URL = "https://api.pexels.com/v1"
 
 
 class DataType(Enum):
@@ -53,6 +59,22 @@ class ImageHandler:
     self.thread = threading.Thread(target=self._process_queue)
     self.thread.daemon = True
     self.thread.start()
+
+  def get_image_from_pexel(self, theme: str, number: int) -> [str]:
+    response = requests.get(
+      f"{PEXELS_BASE_URL}/search",
+      params={"query": theme, "per_page": number},
+      headers={"Authorization": os.getenv("PEXELS_TOKEN")},
+    )
+    response_data = response.json()
+    print(response_data)
+
+    if number > response_data["total_results"]:
+      raise InsufficientImagesError(number, response_data["total_results"])
+
+    photos_data = response_data["photos"]
+    photo_urls = [photo["src"]["original"] for photo in photos_data]
+    return photo_urls
 
   # get image from url
   def get_image_from_url(self, url: str) -> Image.Image:

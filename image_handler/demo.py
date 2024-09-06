@@ -31,23 +31,28 @@ def example():
 
 
 if __name__ == "__main__":
-  CHOICE = str(input("Do you want to run 'example', 'live', or 'check db'? ")).lower()
-  if CHOICE == "example":
-    example()
-  if CHOICE == "live":
-    while True:
-      PROMPT = str(input("Enter prompt (exit to quit): "))
-      if PROMPT != "exit":
-        image_handler.enqueue_prompt_to_image(
-          prompt=PROMPT,
-          info=ImageInfo(filename="live.jpg", date=0, theme="live", real=False),
-        )
-      else:
-        break
+  # CHOICE = str(input("Do you want to run 'example', 'live', or 'check db'? ")).lower()
+  # if CHOICE == "example":
+  #   example()
+  # if CHOICE == "live":
+  #   while True:
+  #     PROMPT = str(input("Enter prompt (exit to quit): "))
+  #     if PROMPT != "exit":
+  #       image_handler.enqueue_prompt_to_image(
+  #         prompt=PROMPT,
+  #         info=ImageInfo(filename="live.jpg", date=0, theme="live", real=False),
+  #       )
+  #     else:
+  #       break
+  #
+  #   image_handler.stop_processing()
+  # if CHOICE == "check db":
+  #   import requests
+  #
+  #   response = requests.get("http://127.0.0.1:5000/image/read", timeout=10)
+  #   print(response.text)
 
-    image_handler.stop_processing()
-  if CHOICE == "check db":
-    import requests
-
-    response = requests.get("http://127.0.0.1:5000/image/read", timeout=10)
-    print(response.text)
+  theme = input("Enter theme: ")
+  urls = image_handler.get_image_from_pexel(theme, 3)
+  for url in urls:
+    print(url)
