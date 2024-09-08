@@ -1,5 +1,6 @@
 import http.client
 import io
+import json
 import os
 import queue
 import sys
@@ -26,6 +27,7 @@ load_dotenv()
 logger = Logger()
 PEXELS_BASE_URL = "https://api.pexels.com/v1"
 URL = "http://127.0.0.1:5000/image/create"
+DATE_URL = "http://127.0.0.1:5000/date/latest"
 
 
 class DataType(Enum):
@@ -73,23 +75,34 @@ class ImageHandler:
         }
         return prompt_info
 
-    def get_image_from_pexel(self, info: ImageInfo, theme: str, number: int):
+    def get_image_from_pexel(self, info: ImageInfo, theme: str, num_images: int):
         response = requests.get(
             f"{PEXELS_BASE_URL}/search",
-            params={"query": theme, "per_page": number},
+            params={"query": theme, "per_page": num_images},
             headers={"Authorization": os.getenv("PEXELS_TOKEN")},
             timeout=5,
         )
         response_data = response.json()
+        print(response_data)
 
-        if number > response_data["total_results"]:
-            raise InsufficientImagesError(number, response_data["total_results"])
+        if num_images > response_data["total_results"]:
+            raise InsufficientImagesError(num_images, response_data["total_results"])
 
         photos_data = response_data["photos"]
         photo_urls = [photo["src"]["original"] for photo in photos_data]
 
+        i = 0
         for url in photo_urls:
-            save_image(url, info)
+            filename = f"{theme}_{int(info.filename.split("_")[-1])+i}"
+            info_instance = ImageInfo(
+                filename=filename,
+                date=info.date,
+                theme=info.theme,
+                real=info.real,
+                status=ImageStatus.UNVERIFIED.value,
+            )
+            save_image(url, info_instance)
+            i += 1
 
     # get image from url
     def get_image_from_url(self, url: str) -> Image.Image:
@@ -247,3 +260,11 @@ def save_image(image: Union[Image.Image, str], info: ImageInfo):
     else:
         logger.error(f"Failed to save image [{info.filename}]")
         logger.error(response.text)
+
+
+def get_date():
+    response = requests.get(
+        DATE_URL,
+        timeout=10,
+    )
+    return json.loads(response.text)
