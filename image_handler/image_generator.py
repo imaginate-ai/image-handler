@@ -83,7 +83,6 @@ class ImageHandler:
             timeout=5,
         )
         response_data = response.json()
-        print(response_data)
 
         if num_images > response_data["total_results"]:
             raise InsufficientImagesError(num_images, response_data["total_results"])
@@ -209,8 +208,8 @@ class ImageHandler:
         return image_pipe(**item["kwargs"]).images[0]
 
     def process_prompt(self, item):
-        # https://huggingface.co/runwayml/stable-diffusion-v1-5
-        text_model_id = "runwayml/stable-diffusion-v1-5"
+        # https://huggingface.co/black-forest-labs/FLUX.1-schnell
+        text_model_id = "stabilityai/sdxl-turbo"
         text_pipe = DiffusionPipeline.from_pretrained(text_model_id, torch_dtype=torch.float16, safety_checker=None).to(
             self.device
         )

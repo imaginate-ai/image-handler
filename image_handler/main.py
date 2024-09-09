@@ -7,7 +7,7 @@ from image_generator import ImageHandler, get_date
 image_handler = ImageHandler()
 GUIDANCE_SCALE = None
 
-NUM_INFERENCE_STEPS = 25
+NUM_INFERENCE_STEPS = 5
 
 
 def add_images(theme: str):
@@ -15,6 +15,8 @@ def add_images(theme: str):
     date = get_date().get("date")
     if not date:
         date = 0
+    date += 1
+    print(f"Saving to date: {date}")
 
     # choose number of ai images to generate (1-4)
     num_ai_images = secrets.randbelow(4) + 1
@@ -22,6 +24,7 @@ def add_images(theme: str):
 
     for i in range(num_ai_images):
         prompt_dict = image_handler.create_prompt(theme=theme)
+        print(f"Using prompt: {prompt_dict['prompt']}")
         image_handler.enqueue_prompt_to_image(
             info=ImageInfo(
                 filename=f"{theme}_{i}",
@@ -52,7 +55,9 @@ def add_images(theme: str):
         num_images=num_pexel_images,
     )
 
+    image_handler.stop_processing()
+
 
 if __name__ == "__main__":
-    theme = input("Enter theme: ")
-    add_images(theme)
+    user_theme = input("Enter theme: ")
+    add_images(user_theme)
