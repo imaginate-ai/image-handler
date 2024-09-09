@@ -33,10 +33,14 @@ def add_images(theme: str):
                 real=False,
                 status=ImageStatus.UNVERIFIED.value,
             ),
-            prompt=prompt_dict["prompt"],
-            negative_prompt=prompt_dict["negative_prompt"],
-            num_inference_steps=NUM_INFERENCE_STEPS,
-            guidance_scale=GUIDANCE_SCALE,
+            kwargs={
+                "prompt": prompt_dict["prompt"],
+                "negative_prompt": prompt_dict["negative_prompt"],
+                "num_inference_steps": NUM_INFERENCE_STEPS,
+                "guidance_scale": GUIDANCE_SCALE,
+                "width": 512,
+                "height": 512,
+            },
         )
 
     # do the rest as pexel images

@@ -75,23 +75,65 @@ class ImageHandler:
         }
         return prompt_info
 
+    def resize_image(self, image):
+        """
+        Resize an image to 512x512 pixels without distorting its aspect ratio.
+        Crops the image to a centered square before resizing.
+
+        :param image: Path to the input image file.
+        :return: Resized image object.
+        """
+        min_side = min(image.size)
+
+        left = (image.width - min_side) / 2
+        top = (image.height - min_side) / 2
+        right = (image.width + min_side) / 2
+        bottom = (image.height + min_side) / 2
+
+        img_cropped = image.crop((left, top, right, bottom))
+        resized_img = img_cropped.resize((512, 512))
+
+        return resized_img
+
     def get_image_from_pexel(self, info: ImageInfo, theme: str, num_images: int):
         response = requests.get(
             f"{PEXELS_BASE_URL}/search",
-            params={"query": theme, "per_page": num_images},
+            params={
+                "query": theme,
+                "per_page": num_images,
+                "orientation": "square",
+            },
             headers={"Authorization": os.getenv("PEXELS_TOKEN")},
             timeout=5,
         )
         response_data = response.json()
 
         if num_images > response_data["total_results"]:
-            raise InsufficientImagesError(num_images, response_data["total_results"])
+            response = requests.get(
+                f"{PEXELS_BASE_URL}/search",
+                params={
+                    "query": theme,
+                    "per_page": num_images - response_data["total_results"],
+                },
+                headers={"Authorization": os.getenv("PEXELS_TOKEN")},
+                timeout=5,
+            )
+            new_response_data = response.json()
+
+            response_data["photos"].extend(new_response_data["photos"])
+            response_data["total_results"] += len(new_response_data["photos"])
+
+            if num_images > response_data["total_results"]:
+                raise InsufficientImagesError(num_images, response_data["total_results"])
 
         photos_data = response_data["photos"]
         photo_urls = [photo["src"]["original"] for photo in photos_data]
 
         i = 0
         for url in photo_urls:
+            image = self.get_image_from_url(url)
+            new_image = self.resize_image(image)
+
             filename = f"{theme}_{int(info.filename.split("_")[-1])+i}"
             info_instance = ImageInfo(
                 filename=filename,
@@ -100,7 +142,7 @@ class ImageHandler:
                 real=info.real,
                 status=ImageStatus.UNVERIFIED.value,
             )
-            save_image(url, info_instance)
+            save_image(new_image, info_instance)
             i += 1
 
     # get image from url
