@@ -1,4 +1,5 @@
 import io
+import os
 import queue
 import threading
 from enum import Enum
@@ -8,7 +9,7 @@ from PIL import Image, ImageOps
 import requests
 import torch
 from aws_lambda_powertools import Logger
-from image_handler_client.schemas.image_info import ImageInfo
+from image_handler_client.schemas.image_info import ImageInfo, ImageStatus
 
 from diffusers import (
     EulerAncestralDiscreteScheduler,
@@ -16,7 +17,13 @@ from diffusers import (
     DiffusionPipeline,
 )
 
+from errors import InsufficientImagesError
+from dotenv import load_dotenv
+
+load_dotenv()
 logger = Logger()
+PEXELS_BASE_URL = "https://api.pexels.com/v1"
+URL = "http://127.0.0.1:5000/image/create"
 
 
 class DataType(Enum):
@@ -54,13 +61,28 @@ class ImageHandler:
         self.thread.daemon = True
         self.thread.start()
 
+    def get_image_from_pexel(self, info: ImageInfo, theme: str, number: int):
+        response = requests.get(
+            f"{PEXELS_BASE_URL}/search",
+            params={"query": theme, "per_page": number},
+            headers={"Authorization": os.getenv("PEXELS_TOKEN")},
+        )
+        response_data = response.json()
+
+        if number > response_data["total_results"]:
+            raise InsufficientImagesError(number, response_data["total_results"])
+
+        photos_data = response_data["photos"]
+        photo_urls = [photo["src"]["original"] for photo in photos_data]
+
+        for url in photo_urls:
+            save_image(url, info)
+
     # get image from url
     def get_image_from_url(self, url: str) -> Image.Image:
         image = Image.open(requests.get(url, stream=True, timeout=10).raw)
         image = ImageOps.exif_transpose(image)
         image = image.convert("RGB")
-
-        _test: str = 1
         return image
 
     # add image to image task to queue
@@ -160,32 +182,43 @@ class ImageHandler:
 
 
 # save image to database
-def save_image(image: Image.Image, info: ImageInfo):
-    url = "http://127.0.0.1:5000/image/create"
-    image_type = "jpeg"
+def save_image(image: Union[Image.Image, str], info: ImageInfo):
+    if image is Image.Image:
+        image_type = "jpeg"
+        image_bytes = io.BytesIO()
+        image.save(image_bytes, format=image_type)
+        image_bytes.seek(0)
 
-    image_bytes = io.BytesIO()
-    image.save(image_bytes, format=image_type)
-    image_bytes.seek(0)
+        files = {"file": (info.filename, image_bytes, f"image/{image_type}")}
 
-    files = {"file": (info.filename, image_bytes, f"image/{image_type}")}
+        response = requests.post(
+            URL,
+            {
+                "real": False,
+                "date": info.date,
+                "theme": info.theme,
+                "status": ImageStatus.UNVERIFIED.value,
+            },
+            files=files,
+            timeout=10,
+        )
+    else:
+        response = requests.post(
+            URL,
+            {
+                "url": image,
+                "real": True,
+                "date": info.date,
+                "theme": info.theme,
+                "status": ImageStatus.UNVERIFIED.value,
+            },
+            files=None,
+        )
 
-    req = requests.post(
-        url,
-        {
-            "real": info.real,
-            "date": info.date,
-            "theme": info.theme,
-            "status": info.status,
-        },
-        files=files,
-        timeout=10,
-    )
-    status = req.status_code
-
+    status = response.status_code
     if status == 200:
-        image_id = req.json()["url"].split("/")[-1]
+        image_id = response.json()["url"].split("/")[-1]
         logger.info(f"Image saved with id: {image_id}")
     else:
         logger.error("Failed to save image")
-        logger.error(req.text)
+        logger.error(response.text)
