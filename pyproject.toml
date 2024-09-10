@@ -26,19 +26,39 @@ accelerate = "^0.33.0"
 ruff = "^0.5.5"
 pillow = "^10.4.0"
 image-handler-client = {git = "https://github.com/imaginate-ai/image-handler-client.git", rev = "v1.0.0"}
+ollama = "^0.3.2"
+httpx = "^0.27.2"
 
 [tool.ruff]
 exclude = []
-line-length = 88
 indent-width = 4
 target-version = "py312"
+src = ["image_handler", "tests"]
+line-length = 120
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F"]
-ignore = []
-fixable = ["ALL"]
-unfixable = []
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+select = [
+  "BLE",
+  "E",
+  "F",
+  "I",
+  "PL",
+  "S",
+]
+unfixable = [
+  "F401"
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+  "D",
+  "S",
+  "PLR2004",
+  "ARG001",
+]
+
+[tool.ruff.lint.pylint]
+max-args = 8
 
 [tool.ruff.format]
 quote-style = "double"

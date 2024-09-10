@@ -1,12 +1,12 @@
-import threading
-import pytest
-from unittest.mock import patch, MagicMock
-from PIL import Image
-import requests
-
-from image_handler.image_generator import ImageHandler, DataType
-from image_handler_client.schemas.image_info import ImageInfo
 import io
+import threading
+from unittest.mock import MagicMock, patch
+
+import pytest
+import requests
+from image_handler.image_generator import DataType, ImageHandler
+from image_handler_client.schemas.image_info import ImageInfo
+from PIL import Image
 
 
 @pytest.fixture(scope="module")
@@ -23,9 +23,7 @@ def mock_image():
 
 @pytest.fixture()
 def mock_info():
-    return ImageInfo(
-        filename="test.jpeg", real=True, date="2023-04-01", theme="test", status="new"
-    )
+    return ImageInfo(filename="test.jpeg", real=True, date="2023-04-01", theme="test", status="new")
 
 
 def run_process_queue(handler):
@@ -36,11 +34,7 @@ def run_process_queue(handler):
 
 @pytest.fixture
 def mock_task_image():
-    return {
-        "type": DataType.IMAGE,
-        "kwargs": {"image": mock_image},
-        "info": MagicMock(),
-    }
+    return {"type": DataType.IMAGE, "kwargs": {"image": mock_image}, "info": MagicMock()}
 
 
 @pytest.fixture
@@ -70,10 +64,7 @@ def mock_queue(mocker):
 
 @pytest.fixture
 def mock_scheduler(mocker):
-    return mocker.patch(
-        "diffusers.EulerAncestralDiscreteScheduler.from_config",
-        return_value=MagicMock(),
-    )
+    return mocker.patch("diffusers.EulerAncestralDiscreteScheduler.from_config", return_value=MagicMock())
 
 
 @pytest.fixture
@@ -142,9 +133,7 @@ def test_enqueue_image_to_image_with_image_object(image_handler, mock_image, moc
 
 def test_enqueue_image_to_image_with_image_url(image_handler, mock_image, mock_info):
     with (
-        patch.object(
-            image_handler, "get_image_from_url", return_value=mock_image
-        ) as mock_get_image,
+        patch.object(image_handler, "get_image_from_url", return_value=mock_image) as mock_get_image,
         patch.object(image_handler.queue, "put") as mock_put,
     ):
         url = "http://fakeurl.com/image.jpg"
@@ -156,9 +145,7 @@ def test_enqueue_image_to_image_with_image_url(image_handler, mock_image, mock_i
         assert task["info"] == mock_info
 
 
-def test_enqueue_image_to_image_missing_optional_params(
-    image_handler, mock_image, mock_info
-):
+def test_enqueue_image_to_image_missing_optional_params(image_handler, mock_image, mock_info):
     with patch.object(image_handler.queue, "put") as mock_put:
         image_handler.enqueue_image_to_image(info=mock_info, image=mock_image)
         task = mock_put.call_args[0][0]
@@ -267,9 +254,7 @@ def test_process_queue_stops_after_none(image_handler):
         mock_task_done.assert_not_called()
 
 
-def test_enqueue_image_to_image_with_optional_params(
-    image_handler, mock_info, mock_image
-):
+def test_enqueue_image_to_image_with_optional_params(image_handler, mock_info, mock_image):
     with patch.object(image_handler.queue, "put") as mock_put:
         valid_image = mock_image
         image_handler.enqueue_image_to_image(
