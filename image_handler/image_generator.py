@@ -27,6 +27,7 @@ load_dotenv()
 logger = Logger()
 PEXELS_BASE_URL = "https://api.pexels.com/v1"
 URL = "http://127.0.0.1:5000/image/create"
+DATE_URL = "http://127.0.0.1:5000/date/latest"
 DATE_URL = "http://127.0.0.1:5000/date"
 
 
