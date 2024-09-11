@@ -27,7 +27,7 @@ load_dotenv()
 logger = Logger()
 PEXELS_BASE_URL = "https://api.pexels.com/v1"
 URL = "http://127.0.0.1:5000/image/create"
-DATE_URL = "http://127.0.0.1:5000/date/latest"
+DATE_URL = "http://127.0.0.1:5000/date"
 
 
 class DataType(Enum):
@@ -273,7 +273,7 @@ def save_image(image: Union[Image.Image, str], info: ImageInfo):
         response = requests.post(
             URL,
             {
-                "real": False,
+                "real": info.real,
                 "date": info.date,
                 "theme": info.theme,
                 "status": ImageStatus.UNVERIFIED.value,
@@ -286,7 +286,7 @@ def save_image(image: Union[Image.Image, str], info: ImageInfo):
             URL,
             {
                 "url": image,
-                "real": True,
+                "real": info.real,
                 "date": info.date,
                 "theme": info.theme,
                 "status": ImageStatus.UNVERIFIED.value,
@@ -305,7 +305,12 @@ def save_image(image: Union[Image.Image, str], info: ImageInfo):
 
 def get_date():
     response = requests.get(
-        DATE_URL,
+        f"{DATE_URL}/latest",
         timeout=10,
     )
+    return json.loads(response.text)
+
+
+def get_images_from_date(day: int):
+    response = requests.get(f"{DATE_URL}/{day}/images", timeout=10)
     return json.loads(response.text)
