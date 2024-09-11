@@ -95,10 +95,37 @@ def print_date(date: int):
             print(f"{colour}Too many images{RESET}")
             return
 
-    col_width = 20
+    col_width = 5
     print("".join(f"{colour}{image['real']:<{col_width}}{RESET}" for image in response))
 
     # print(f"response: {response}")
+
+
+def calculate_images_to_generate(real_count, ai_count):
+    remaining_slots = MAX_IMAGES - (real_count + ai_count)
+
+    # Ensure there's at least one of each type
+    real_to_generate = 1 if real_count == 0 else 0
+    ai_to_generate = 1 if ai_count == 0 else 0
+
+    # Adjust remaining slots after ensuring at least one of each
+    remaining_slots -= real_to_generate + ai_to_generate
+
+    # Distribute remaining slots randomly if available
+    if remaining_slots > 0:
+        additional_real = secrets.randbelow(remaining_slots + 1)
+        additional_ai = remaining_slots - additional_real
+    else:
+        additional_real = additional_ai = 0
+
+    # Final counts of images to generate
+    real_to_generate += additional_real
+    ai_to_generate += additional_ai
+
+    return {
+        "real": real_to_generate,
+        "ai": ai_to_generate,
+    }
 
 
 def check_latest():
@@ -117,47 +144,17 @@ def check_latest():
     count = count_images(response)
     real_count = count["real"]
     ai_count = count["ai"]
+    generate = calculate_images_to_generate(real_count, ai_count)
 
-    remaining_slots = MAX_IMAGES - (real_count + ai_count)
+    print(f"Real to generate: {generate['real']}, AI to generate: {generate['ai']}")
 
-    # Ensure there's at least one of each
-    if real_count == 0:
-        real_to_generate = 1
-    else:
-        real_to_generate = 0
-
-    if ai_count == 0:
-        ai_to_generate = 1
-    else:
-        ai_to_generate = 0
-
-    # Adjust remaining slots after ensuring at least one of each
-    remaining_slots -= real_to_generate + ai_to_generate
-
-    # Distribute the remaining slots randomly
-    if remaining_slots > 0:
-        # Randomly distribute the remaining slots between real and AI
-        additional_real = secrets.randbelow(remaining_slots)
-        additional_ai = remaining_slots - additional_real
-    else:
-        additional_real = 0
-        additional_ai = 0
-
-    # Final counts of images to generate
-    real_to_generate += additional_real
-    ai_to_generate += additional_ai
-
-    print(f"Real: {real_count}, AI: {ai_count}")
-    print(f"Real to generate: {real_to_generate}, AI to generate: {ai_to_generate}")
-
-    add_images(response[0]["theme"], date, ai_to_generate, real_to_generate, real_count + ai_count)
+    add_images(response[0]["theme"], date, generate["real"], generate["ai"], len(response))
 
 
 if __name__ == "__main__":
     check_latest()
     user_theme = input("Enter theme: ")
     normal_run(user_theme)
-    print_date(1725768005)
 
 
 # change the add images function to take date, num of both images
