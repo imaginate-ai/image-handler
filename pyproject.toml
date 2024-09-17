@@ -47,12 +47,16 @@ select = [
   "S",
 ]
 
+
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
   "D",
   "S",
   "PLR2004",
   "ARG001",
+]
+"image_handler/image_handler_instance.py" = [
+  "PLW0603",
 ]
 
 [tool.ruff.lint.pylint]

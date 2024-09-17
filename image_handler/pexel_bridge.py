@@ -61,8 +61,8 @@ def resize_image(image: Image) -> Image:
     return resized_img
 
 
-def save_pexel_images(info: ImageInfo, num_images: int):
-    response_data = fetch_image(info.theme, num_images)
+def save_pexel_images(info: ImageInfo, num_images: int, skip: int = 0):
+    response_data = fetch_image(info.theme, num_images + skip)
     if response_data is None:
         return
 
@@ -74,6 +74,9 @@ def save_pexel_images(info: ImageInfo, num_images: int):
 
     i = 0
     for url in photo_urls:
+        if i < skip:
+            i += 1
+            continue
         image = get_image_from_url(url)
         new_image = resize_image(image)
 

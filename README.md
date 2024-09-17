@@ -1,9 +1,9 @@
 ### Useful commands:
 - Creating the environment: `make local-setup`
-- Entering the environment: `poetry shell`
-- Leaving the environment: `exit`
 - Installing libraries in the environment: `make install`
-- Run the Flask application: `python image_handler/demo.py`
+- Run the health check script: `make health_check`
+- Run the health check script with fixes: `make health_check_fix`
+- Run the generate images script: `make generate`
 
 Download ollama from https://ollama.com/download
 Once installed, run ollama.exe, then launch terminal and type ''' ollama run llama3'''

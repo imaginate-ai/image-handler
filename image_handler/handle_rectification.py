@@ -29,6 +29,9 @@ def handle_missing_images(date, data):
 def handle_rejected_images(date: int, data: list):
     real_counter = 5
 
+    if not any(image["status"] == ImageStatus.REJECTED.value for image in data):
+        return
+
     # replace rejected images
     delete_rejected_images(date)
 
@@ -99,6 +102,7 @@ def add_images(theme: str, date: int, num_ai_images: int, num_pexel_images: int,
             status=ImageStatus.UNVERIFIED.value,
         ),
         num_images=num_pexel_images,
+        skip=starting_number,
     )
 
     for i in range(num_ai_images):

@@ -20,12 +20,18 @@ def get_image_from_url(url: str) -> Image:
 
 
 def print_date(date: int, data: list) -> bool:
-    date_width = 15
+    date_width = 30
     col_width = 10
 
     all_verified = True
 
     count = count_images(data)
+
+    theme = None
+    try:
+        theme = data[0]["theme"]
+    except IndexError:
+        pass
 
     # create list of each image, colouring them based on their status
     real_ai_list = []
@@ -47,7 +53,7 @@ def print_date(date: int, data: list) -> bool:
         real_ai_list.extend([f"{'':<{col_width}}"] * (MAX_IMAGES - len(real_ai_list)))
     real_ai_string = "".join(real_ai_list)
 
-    date_str = f"{convert_to_readable_date(date)}:"
+    date_str = f"{convert_to_readable_date(date)} ({theme}):"
     date_str += " " * (date_width - len(date_str))
 
     # Determine if the day is a success

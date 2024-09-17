@@ -33,12 +33,19 @@ def generate_images(theme: str):
         date=date,
         num_ai_images=generate["ai"],
         num_pexel_images=generate["real"],
-        data=None,
+        starting_number=0,
     )
 
 
 if __name__ == "__main__":
     check_last_date()
 
-    user_theme = input("Enter theme: ")
-    generate_images(user_theme)
+    themes = [
+        "cat",
+        "dog",
+        "flower",
+        "car",
+    ]
+
+    for theme in themes:
+        generate_images(theme)

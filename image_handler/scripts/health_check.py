@@ -1,3 +1,5 @@
+import argparse
+
 from image_handler.constants import SECONDS_PER_DAY, START_DATE
 from image_handler.db import get_date, get_grouped_images_by_date
 from image_handler.handle_rectification import handle_missing_images, handle_rejected_images
@@ -27,4 +29,8 @@ def health_check(fix=False):
 
 
 if __name__ == "__main__":
-    health_check(fix=True)
+    parser = argparse.ArgumentParser(description="Health check script")
+    parser.add_argument("--fix", action="store_true", help="Run health check with fix")
+    args = parser.parse_args()
+
+    health_check(args.fix)
