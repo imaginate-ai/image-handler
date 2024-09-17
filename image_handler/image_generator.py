@@ -1,16 +1,8 @@
-import http.client
-import io
-import json
-import os
 import queue
-import sys
 import threading
 from enum import Enum
 from typing import Union
 
-import httpx
-import ollama
-import requests
 import torch
 from aws_lambda_powertools import Logger
 from diffusers import (
@@ -18,17 +10,13 @@ from diffusers import (
     EulerAncestralDiscreteScheduler,
 )
 from dotenv import load_dotenv
-from image_handler_client.schemas.image_info import ImageInfo, ImageStatus
-from PIL import Image, ImageOps
-
-from errors import InsufficientImagesError
+from image_handler.db import save_image
+from image_handler.util import get_image_from_url
+from image_handler_client.schemas.image_info import ImageInfo
+from PIL import Image
 
 load_dotenv()
 logger = Logger()
-PEXELS_BASE_URL = "https://api.pexels.com/v1"
-URL = "http://127.0.0.1:5000/image/create"
-DATE_URL = "http://127.0.0.1:5000/date/latest"
-DATE_URL = "http://127.0.0.1:5000/date"
 
 
 class DataType(Enum):
@@ -47,112 +35,6 @@ class ImageHandler:
         self.thread.daemon = True
         self.thread.start()
 
-    # create prompt from theme input
-    def create_prompt(self, theme: str) -> dict:
-        try:
-            response = ollama.chat(
-                model="llama3",
-                keep_alive=0,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": f"generate a prompt for an ai image model to create a real photograph of {theme}. "
-                        f"Only output the prompt, nothing else, as the response will be fed "
-                        f"directly to the image generator. Make sure the prompt is under 75 words.",
-                    },
-                ],
-            )
-        except httpx.ConnectError:
-            print("Error: 'ollama' service needs to be running. Please start it and try again.")
-            sys.exit(1)
-
-        prompt_info = {
-            "prompt": response["message"]["content"],
-            "negative_prompt": (
-                "bad lighting, out of focus, blurred, poorly composed, low resolution, "
-                "extra elements, hands, people, non-food items, cartoonish, animated, "
-                "unrealistic, uncentered, over saturated zoomed in"
-            ),
-        }
-        return prompt_info
-
-    def resize_image(self, image):
-        """
-        Resize an image to 512x512 pixels without distorting its aspect ratio.
-        Crops the image to a centered square before resizing.
-
-        :param image: Path to the input image file.
-        :return: Resized image object.
-        """
-        min_side = min(image.size)
-
-        left = (image.width - min_side) / 2
-        top = (image.height - min_side) / 2
-        right = (image.width + min_side) / 2
-        bottom = (image.height + min_side) / 2
-
-        img_cropped = image.crop((left, top, right, bottom))
-        resized_img = img_cropped.resize((512, 512))
-
-        return resized_img
-
-    def get_image_from_pexel(self, info: ImageInfo, theme: str, num_images: int):
-        response = requests.get(
-            f"{PEXELS_BASE_URL}/search",
-            params={
-                "query": theme,
-                "per_page": num_images,
-                "orientation": "square",
-            },
-            headers={"Authorization": os.getenv("PEXELS_TOKEN")},
-            timeout=5,
-        )
-        response_data = response.json()
-
-        if num_images > response_data["total_results"]:
-            response = requests.get(
-                f"{PEXELS_BASE_URL}/search",
-                params={
-                    "query": theme,
-                    "per_page": num_images - response_data["total_results"],
-                },
-                headers={"Authorization": os.getenv("PEXELS_TOKEN")},
-                timeout=5,
-            )
-            new_response_data = response.json()
-
-            response_data["photos"].extend(new_response_data["photos"])
-            response_data["total_results"] += len(new_response_data["photos"])
-
-            if num_images > response_data["total_results"]:
-                raise InsufficientImagesError(num_images, response_data["total_results"])
-
-        photos_data = response_data["photos"]
-        photo_urls = [photo["src"]["original"] for photo in photos_data]
-
-        i = 0
-        for url in photo_urls:
-            image = self.get_image_from_url(url)
-            new_image = self.resize_image(image)
-
-            filename = f"{theme}_{int(info.filename.split("_")[-1])+i}"
-            info_instance = ImageInfo(
-                filename=filename,
-                date=info.date,
-                theme=info.theme,
-                real=info.real,
-                status=ImageStatus.UNVERIFIED.value,
-            )
-            save_image(new_image, info_instance)
-            i += 1
-
-    # get image from url
-    def get_image_from_url(self, url: str) -> Image.Image:
-        image = Image.open(requests.get(url, stream=True, timeout=10).raw)
-        image = ImageOps.exif_transpose(image)
-        image = image.convert("RGB")
-        return image
-
     # add image to image task to queue
     def enqueue_image_to_image(
         self,
@@ -165,7 +47,7 @@ class ImageHandler:
         # pylint: disable=unused-argument
 
         if isinstance(image, str):
-            image = self.get_image_from_url(image)
+            image = get_image_from_url(image)
 
         if image is None:
             raise ValueError("Image is None")
@@ -259,59 +141,3 @@ class ImageHandler:
         text_pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(text_pipe.scheduler.config)
 
         return text_pipe(**item["kwargs"]).images[0]
-
-
-# save image to database
-def save_image(image: Union[Image.Image, str], info: ImageInfo):
-    if isinstance(image, Image.Image):
-        image_type = "jpeg"
-        image_bytes = io.BytesIO()
-        image.save(image_bytes, format=image_type)
-        image_bytes.seek(0)
-
-        files = {"file": (info.filename, image_bytes, f"image/{image_type}")}
-
-        response = requests.post(
-            URL,
-            {
-                "real": info.real,
-                "date": info.date,
-                "theme": info.theme,
-                "status": ImageStatus.UNVERIFIED.value,
-            },
-            files=files,
-            timeout=10,
-        )
-    else:
-        response = requests.post(
-            URL,
-            {
-                "url": image,
-                "real": info.real,
-                "date": info.date,
-                "theme": info.theme,
-                "status": ImageStatus.UNVERIFIED.value,
-            },
-            files=None,
-            timeout=5,
-        )
-
-    status = response.status_code
-    if status == http.client.OK:
-        logger.info(f"Image [{info.filename}] successfully saved")
-    else:
-        logger.error(f"Failed to save image [{info.filename}]")
-        logger.error(response.text)
-
-
-def get_date():
-    response = requests.get(
-        f"{DATE_URL}/latest",
-        timeout=10,
-    )
-    return json.loads(response.text)
-
-
-def get_images_from_date(day: int):
-    response = requests.get(f"{DATE_URL}/{day}/images", timeout=10)
-    return json.loads(response.text)

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 from image_handler.image_generator import DataType, ImageHandler
-from image_handler.main import calculate_images_to_generate
+from image_handler.util import calculate_images_to_generate
 from image_handler_client.schemas.image_info import ImageInfo
 from PIL import Image
 
@@ -317,13 +317,13 @@ def test_enqueue_image_to_image_task_structure(image_handler, mock_info, mock_im
 
 
 def test_calculate_images():
-    possible = [0, 1, 2, 3, 4, 5]
+    possible = [0, 1, 2, 3, 4]
 
     for num in possible:
         initial_real = num
         for num_2 in possible:
             initial_ai = num_2
-            if initial_ai < (5 - initial_real):
+            if (initial_ai + initial_real) <= 5:
                 for _ in range(100):
                     result = calculate_images_to_generate(initial_real, initial_ai)
 
