@@ -34,6 +34,8 @@ def fetch_image(theme: str, num_images: int) -> dict | None:
         return response.json()
     elif response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
         raise TooManyRequestsError()
+    elif response.status_code == HTTPStatus.UNAUTHORIZED:
+        raise ValueError("Unauthorized: Pexels token is missing or invalid")
     elif response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR:
         raise ValueError(f"Internal server error: {response.text}")
     else:

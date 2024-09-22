@@ -126,5 +126,3 @@ def add_images(theme: str, date: int, num_ai_images: int, num_pexel_images: int,
                 "height": 512,
             },
         )
-
-    image_handler_instance.stop_processing()

@@ -1,6 +1,7 @@
 from image_handler.constants import SECONDS_PER_DAY, START_DATE
 from image_handler.db import get_date, get_grouped_images_by_date
 from image_handler.handle_rectification import add_images, handle_missing_images
+from image_handler.image_handler_instance import get_image_handler
 from image_handler.util import calculate_images_to_generate, print_date
 
 
@@ -49,3 +50,5 @@ if __name__ == "__main__":
 
     for theme in themes:
         generate_images(theme)
+
+    get_image_handler().stop_processing()
