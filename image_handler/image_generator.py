@@ -25,15 +25,18 @@ class DataType(Enum):
 
 
 class ImageHandler:
-    def __init__(self):
+    def __init__(self, sync=False):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Initialized for {self.device}")
 
+        self.sync = sync
+
         # Initialize the asynchronous queue and thread
-        self.queue = queue.Queue()
-        self.thread = threading.Thread(target=self._process_queue)
-        self.thread.daemon = True
-        self.thread.start()
+        if sync:
+            self.queue = queue.Queue()
+            self.thread = threading.Thread(target=self._process_queue)
+            self.thread.daemon = True
+            self.thread.start()
 
     # add image to image task to queue
     def enqueue_image_to_image(
@@ -58,8 +61,12 @@ class ImageHandler:
             "kwargs": kwargs,
             "info": info,
         }
-        self.queue.put(task)
-        logger.info(f"\nEnqueued: {info.filename}")
+
+        print(f"\nEnqueued ai: {info.filename}")
+        if self.sync:
+            self.queue.put(task)
+        else:
+            self.process(task)
 
     # add text to image task to queue
     def enqueue_prompt_to_image(
@@ -84,8 +91,12 @@ class ImageHandler:
             "kwargs": kwargs,
             "info": info,
         }
-        self.queue.put(task)
-        logger.info(f"\nEnqueued: {info.filename}")
+
+        print(f"\nEnqueued ai: {info.filename}")
+        if self.sync:
+            self.queue.put(task)
+        else:
+            self.process(task)
 
     # Continuously process the queue
     def _process_queue(self):
