@@ -30,6 +30,7 @@ class ImageHandler:
         logger.info(f"Initialized for {self.device}")
 
         self.sync = sync
+        logger.info(f"Sync: {self.sync}")
 
         # Initialize the asynchronous queue and thread
         if sync:
@@ -63,7 +64,7 @@ class ImageHandler:
         }
 
         print(f"\nEnqueued ai: {info.filename}")
-        if self.sync:
+        if not self.sync:
             self.queue.put(task)
         else:
             self.process(task)
@@ -93,7 +94,7 @@ class ImageHandler:
         }
 
         print(f"\nEnqueued ai: {info.filename}")
-        if self.sync:
+        if not self.sync:
             self.queue.put(task)
         else:
             self.process(task)

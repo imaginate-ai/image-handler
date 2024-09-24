@@ -6,7 +6,7 @@ from typing import Union
 
 import requests
 from image_handler.constants import DATE_URL, IMAGE_URL
-from image_handler_client.schemas.image_info import ImageInfo, ImageStatus
+from image_handler_client.schemas.image_info import ImageInfo
 from PIL import Image
 
 
@@ -33,7 +33,7 @@ def save_image(image: Union[Image.Image, str], info: ImageInfo):
                 "real": info.real,
                 "date": info.date,
                 "theme": info.theme,
-                "status": ImageStatus.UNVERIFIED.value,
+                "status": info.status,
             },
             files=files,
             timeout=10,
@@ -46,7 +46,7 @@ def save_image(image: Union[Image.Image, str], info: ImageInfo):
                 "real": info.real,
                 "date": info.date,
                 "theme": info.theme,
-                "status": ImageStatus.UNVERIFIED.value,
+                "status": info.status,
             },
             files=None,
             timeout=5,

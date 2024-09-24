@@ -16,14 +16,57 @@ def handle_missing_images(date, data):
         f"Generating {generate['ai']} AI images and "
         f"{generate['real']} real images for date: {convert_to_readable_date(date)}"
     )
+    generate["real"] += generate["ai"]
+    generate["ai"] = 0
 
-    add_images(
-        theme=data[0]["theme"],
-        date=date,
-        num_ai_images=generate["ai"],
-        num_pexel_images=generate["real"],
-        starting_number=len(data),
-    )
+    real_counter = 5
+    for i in range(generate["real"]):
+        response_data = fetch_image(data[0]["theme"], 80)
+        photos_data = response_data["photos"]
+        photo_urls = [photo["src"]["original"] for photo in photos_data]
+
+        answer = "n"
+        while answer != "y":
+            image = resize_image(get_image_from_url(photo_urls[real_counter]))
+            image.show()
+            real_counter += 1
+
+            answer = input(f'accept image for theme [{data[0]["theme"]}]? y/n: ')
+            if answer == "y":
+                info = ImageInfo(
+                    filename="filename",
+                    date=date,
+                    theme=data[0]["theme"],
+                    real=True,
+                    status=ImageStatus.VERIFIED.value,
+                )
+                save_image(image, info)
+                break
+
+    for i in range(generate["ai"]):
+        image_handler_instance = get_image_handler()
+
+        prompt_dict = create_prompt(theme=data[0]["theme"])
+        print(f"Using prompt: {prompt_dict['prompt']}")
+        image_handler_instance.enqueue_prompt_to_image(
+            info=ImageInfo(
+                filename="filename",
+                date=date,
+                theme=data[0]["theme"],
+                real=False,
+                status=ImageStatus.UNVERIFIED.value,
+            ),
+            kwargs={
+                "prompt": prompt_dict["prompt"],
+                "negative_prompt": prompt_dict["negative_prompt"],
+                "num_inference_steps": NUM_INFERENCE_STEPS,
+                "guidance_scale": GUIDANCE_SCALE,
+                "width": 512,
+                "height": 512,
+            },
+        )
+
+        image_handler_instance.stop_processing()
 
 
 def handle_rejected_images(date: int, data: list):
@@ -58,7 +101,7 @@ def handle_rejected_images(date: int, data: list):
                             date=date,
                             theme=image_info.theme,
                             real=True,
-                            status=ImageStatus.UNVERIFIED.value,
+                            status=ImageStatus.VERIFIED.value,
                         )
                         save_image(image, info)
                         break
