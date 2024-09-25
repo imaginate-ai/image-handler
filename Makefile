@@ -18,3 +18,19 @@ lint:
 test:
 	@echo Running tests
 	@poetry run pytest -v
+
+.PHONY: generate
+generate:
+	@echo Generating images
+	@poetry run python image_handler/scripts/generate.py
+
+.PHONY: health_check_fix
+health_check_fix:
+	@echo Checking database health
+	@poetry run python image_handler/scripts/health_check.py --fix
+
+
+.PHONY: health_check
+health_check:
+	@echo Checking database health
+	@poetry run python image_handler/scripts/health_check.py

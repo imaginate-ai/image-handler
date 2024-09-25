@@ -25,9 +25,10 @@ pre-commit = "^3.7.1"
 accelerate = "^0.33.0"
 ruff = "^0.5.5"
 pillow = "^10.4.0"
-image-handler-client = {git = "https://github.com/imaginate-ai/image-handler-client.git", rev = "v1.0.0"}
+image-handler-client = {git = "https://github.com/imaginate-ai/image-handler-client.git", rev = "v1.0.2"}
 ollama = "^0.3.2"
 httpx = "^0.27.2"
+python-dotenv = "^1.0.1"
 
 [tool.ruff]
 exclude = []
@@ -45,9 +46,7 @@ select = [
   "PL",
   "S",
 ]
-unfixable = [
-  "F401"
-]
+
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
@@ -55,6 +54,9 @@ unfixable = [
   "S",
   "PLR2004",
   "ARG001",
+]
+"image_handler/image_handler_instance.py" = [
+  "PLW0603",
 ]
 
 [tool.ruff.lint.pylint]

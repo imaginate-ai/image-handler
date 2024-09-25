@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 from image_handler.image_generator import DataType, ImageHandler
+from image_handler.util import calculate_images_to_generate
 from image_handler_client.schemas.image_info import ImageInfo
 from PIL import Image
 
@@ -313,3 +314,23 @@ def test_enqueue_image_to_image_task_structure(image_handler, mock_info, mock_im
         assert "kwargs" in task
         assert "info" in task
         assert task["type"] == DataType.IMAGE
+
+
+def test_calculate_images():
+    possible = [0, 1, 2, 3, 4]
+
+    for num in possible:
+        initial_real = num
+        for num_2 in possible:
+            initial_ai = num_2
+            if (initial_ai + initial_real) <= 5:
+                for _ in range(100):
+                    result = calculate_images_to_generate(initial_real, initial_ai)
+
+                    total_real = initial_real + result["real"]
+                    total_ai = initial_ai + result["ai"]
+                    assert total_real > 0
+                    assert total_ai > 0
+
+                    total = total_real + total_ai
+                    assert total == 5
